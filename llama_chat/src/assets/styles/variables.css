@@ -1,0 +1,50 @@
+/* 鼠标悬停效果 */
+.nor-button{
+  font-size: 16px; /* 根据需要调整字体大小 */
+  color: white;
+  background-color: #4169E1; /* 可以根据喜好调整背景颜色 */
+  border: none;
+  cursor: pointer;
+  /* 确保文本内容居中 */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: background-color 0.3s;
+}
+.nor-button:hover {
+  background-color: #6495ED;
+}
+  
+/* 输入框背景View的样式 */
+.input-background {
+  background-color: #fff; /* 淡黑色背景 */
+  border: 1px solid #333; /* 黑色边框线，宽度为1px */
+  border-radius: 15px; /* 圆角半径为15px */
+  display: inline-block; /* 确保容器只包裹其内容 */
+  transition: background-color 0.3s ease; /* 平滑过渡效果 */
+  margin-left: 15px;
+  margin-right: 15px;
+  padding: 10px;
+  display: flex;
+  justify-content: center; /* 水平居中 */
+  align-items: center; /* 垂直居中（如果需要的话） */
+
+}
+
+/* 当鼠标悬停在背景View上时 */
+.input-background:hover {
+  border: 1px solid #4169E1; /* 黑色边框线，宽度为1px */
+}
+
+/* 输入框本身的样式 */
+.input-field {
+  width: 100%; /* 输入框宽度占满背景容器 */
+  height: 100%; /* 输入框高度与背景容器匹配 */
+  border: none; /* 移除默认边框 */
+  padding: 10px; /* 内边距可以根据需要调整 */
+  font-size: 16px; /* 字体大小 */
+  box-sizing: border-box; /* 确保padding和border包含在元素的总尺寸内 */
+  border-radius: inherit; /* 继承父级的圆角设置 */
+  background-color: transparent; /* 背景透明以展示背景容器的颜色 */
+  outline: none; /* 移除获得焦点时的默认轮廓 */
+}
