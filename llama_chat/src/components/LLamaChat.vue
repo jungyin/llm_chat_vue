@@ -86,9 +86,28 @@ export default {
     //   }
     //   return `<code>${code}</code>`;
     // };
+    const originalInlineParagraph = renderer.paragraph;
+    renderer.paragraph = function(text) {
+      text= text.text
+      if (text.trim().startsWith('$$') && text.trim().endsWith('$$')) {
+        console.log("识别到公式",text.trim().slice(2, -2))
+        return renderMath(text.trim().slice(2, -2), true);
+      }
+      return originalInlineParagraph.apply(this, arguments);
+    };
 
+    const options = {
+          gfm: true,
+          breaks: true,
+          smartLists: true,
+          smartypants:true,
+          highlight: function(code) {
+            return require('highlight.js').highlightAuto(code).value;
+          },
+          renderer:renderer
+        };
 
-    this.$data.cachetest = this.getMarkedText(markdownContent)
+    this.$data.cachetest = marked(markdownContent,options)
 
     this.replace_message()
 
@@ -237,7 +256,7 @@ export default {
       try {
 
         // var url = "http://192.168.10.191:5090"
-        var url = "http://localhost:8081"
+        var url = "http://localhost:8080"
         const response = await axios.post(url+'/getMessageList', {
         }, {
           params: {
@@ -245,6 +264,33 @@ export default {
         });
 
 
+        const renderer = new marked.Renderer();
+
+        // 自定义代码块渲染
+        renderer.code = (code, language) => {
+          let text = code.text
+          if(code.lang == "html"){
+            text=text.replace(/&/g, '&amp;')
+                         .replace(/</g, '&lt;')
+                         .replace(/>/g, '&gt;')
+                         .replace(/"/g, '&quot;')
+                         .replace(/'/g, '&#039;');
+          }
+
+          return `<div class="code-block"><span class="language-label">${code.lang}</span><button class="copy-btn" data-clipboard-text="${text}">Copy</button><pre><code class="language-${code.lang}">${text}</code></pre></div>`;
+        };
+
+        const options = {
+              gfm: true,
+              breaks: true,
+              smartLists: true,
+              smartypants:true,
+              highlight: function(code) {
+                return require('highlight.js').highlightAuto(code).value;
+              },
+              renderer:renderer
+            };
+        console.log(response.data.data[0])
         let cache = []
         for (let i = 0;i<response.data.data.length;i++){
           if(response.data.data[i].role == 'user'){
