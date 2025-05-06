@@ -89,7 +89,7 @@ export default {
     const originalInlineParagraph = renderer.paragraph;
     renderer.paragraph = function(text) {
       text= text.text
-      if (text.trim().startsWith('$$') && text.trim().endsWith('$$')) {
+      if (text.trim().startsWith('[') && text.trim().endsWith(']')) {
         console.log("识别到公式",text.trim().slice(2, -2))
         return renderMath(text.trim().slice(2, -2), true);
       }
@@ -161,7 +161,7 @@ export default {
     async speak(context) {
       try {
         // var url = "http://192.168.10.191:5090"
-        var url = "http://localhost:8081"
+        var url = "http://localhost:8080"
         const response = await axios.post(url+'/speek', {
         }, {
           params: {
@@ -196,14 +196,42 @@ export default {
                          .replace(/"/g, '&quot;')
                          .replace(/'/g, '&#039;');
           }
-
-          if (text.trim().startsWith('$$') && text.trim().endsWith('$$')) {
+        
+          if (text.trim().startsWith('[') && text.trim().endsWith(']')) {
             console.log("识别到公式",text.trim().slice(2, -2))
             return renderMath(text.trim().slice(2, -2), true);
           }
 
           var rtext = `<div class="code-block"><span class="language-label">${code.lang}</span><button class="copy-btn" data-clipboard-text="${text}">Copy</button><pre><code class="language-${code.lang}">${text}</code></pre></div>`;
           return  rtext
+        };
+    
+
+              // 自定义段落处理以支持行内和块级数学公式
+        this.$data.renderer.paragraph = (text) => {
+          text = text.text
+          console.log(text)
+          // 行内公式替换
+          text = text.replace(/$\s*(.*?)\s*$/g, (match, p1) => {
+            try {
+              return katex.renderToString(p1, { throwOnError: false });
+            } catch (err) {
+              console.error('Failed to render inline math:', err);
+              return `<span style="color:red;">${match}</span>`;
+            }
+          });
+
+          // 块级公式替换
+          text = text.replace(/$\s*(.*?)\s*$/g, (match, p1) => {
+            try {
+              return `<p>${katex.renderToString(p1, { throwOnError: false, displayMode: true })}</p>`;
+            } catch (err) {
+              console.error('Failed to render block math:', err);
+              return `<p><span style="color:red;">${match}</span></p>`;
+            }
+          });
+
+          return `<p>${text}</p>`;
         };
         
       }
@@ -232,7 +260,7 @@ export default {
       try {
 
         // var url = "http://192.168.10.191:5090"
-        var url = "http://localhost:8081"
+        var url = "http://localhost:8080"
         const response = await axios.post(url+'/getLastStr', {
         }, {
           params: {
@@ -263,34 +291,6 @@ export default {
           }
         });
 
-
-        const renderer = new marked.Renderer();
-
-        // 自定义代码块渲染
-        renderer.code = (code, language) => {
-          let text = code.text
-          if(code.lang == "html"){
-            text=text.replace(/&/g, '&amp;')
-                         .replace(/</g, '&lt;')
-                         .replace(/>/g, '&gt;')
-                         .replace(/"/g, '&quot;')
-                         .replace(/'/g, '&#039;');
-          }
-
-          return `<div class="code-block"><span class="language-label">${code.lang}</span><button class="copy-btn" data-clipboard-text="${text}">Copy</button><pre><code class="language-${code.lang}">${text}</code></pre></div>`;
-        };
-
-        const options = {
-              gfm: true,
-              breaks: true,
-              smartLists: true,
-              smartypants:true,
-              highlight: function(code) {
-                return require('highlight.js').highlightAuto(code).value;
-              },
-              renderer:renderer
-            };
-        console.log(response.data.data[0])
         let cache = []
         for (let i = 0;i<response.data.data.length;i++){
           if(response.data.data[i].role == 'user'){
