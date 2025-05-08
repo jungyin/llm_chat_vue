@@ -56,6 +56,7 @@ export default {
         display: 'flex',
         flexDirection: 'column',
         renderer : null,
+        tokenizer :  null,
         marked_options : null,
 
       };
@@ -64,6 +65,8 @@ export default {
   created() {
     const markdownContent ='当然可以！以下是一个简单的 Python 代码示例，展示如何绘制一个简单的波形图：\n\n```python\nimport numpy as np\nimport matplotlib.pyplot as plt\n\n# 定义时间数组和对应的幅度数组\ntime = np.linspace(0, 10, 100)\namplitude = np.sin(time)\n\n# 创建图形\nplt.plot(time, amplitude)\n\n# 设置标题和轴标签\nplt.title(\'Simple Waveform\')\nplt.xlabel(\'Time (s)\')\nplt.ylabel(\'Amplitude\')\n\n# 显示图形\nplt.show()\n```\n\n在这个示例中，我们首先导入了`numpy`模块，并定义了时间数组和对应的幅度数组。然后，我们使用`plt.plot()`函数创建了一个简单的波形图，并设置了标题和轴标签。最后，我们使用`plt.show()`函数显示图形。\n\n你可以根据需要修改时间和幅度数据，以绘制不同的波形图。\n这是一个包含数学公式的Markdown文本：\n$$ E = mc^2 $$\n尝试使用MathJax渲染它。'
     const renderer = new marked.Renderer();
+ 
+    // this.checklaststr();
     
   const renderMath = (str, displayMode) => {
     try {
@@ -74,27 +77,7 @@ export default {
     }
   };
 
-    // 自定义代码块渲染
-    renderer.code = (code, language) => {
-      return `<div class="code-block"><span class="language-label">${code.lang}</span><button class="copy-btn" data-clipboard-text="${encodeURIComponent(code.text)}">Copy</button><pre><code class="language-${code.lang}">${code.text}</code></pre></div>`;
-    };
-
-    // renderer.codespan = function(code) {
-    //   console.log(code)
-    //   if (code.startsWith('$') && code.endsWith('$')) {
-    //     return renderMath(code.slice(1, -1), false);
-    //   }
-    //   return `<code>${code}</code>`;
-    // };
-    const originalInlineParagraph = renderer.paragraph;
-    renderer.paragraph = function(text) {
-      text= text.text
-      if (text.trim().startsWith('[') && text.trim().endsWith(']')) {
-        console.log("识别到公式",text.trim().slice(2, -2))
-        return renderMath(text.trim().slice(2, -2), true);
-      }
-      return originalInlineParagraph.apply(this, arguments);
-    };
+ 
 
     const options = {
           gfm: true,
@@ -107,7 +90,7 @@ export default {
           renderer:renderer
         };
 
-    this.$data.cachetest = marked(markdownContent,options)
+    this.$data.cachetest = this.getMarkedText(markdownContent)
 
     this.replace_message()
 
@@ -161,7 +144,7 @@ export default {
     async speak(context) {
       try {
         // var url = "http://192.168.10.191:5090"
-        var url = "http://localhost:8080"
+        var url = "http://localhost:8081"
         const response = await axios.post(url+'/speek', {
         }, {
           params: {
@@ -175,6 +158,57 @@ export default {
     },
 
     getMarkedText(context) {
+      // console.log('查看输入',context)
+      if(this.$data.tokenizer == null){
+        // const regex = /\$\$(.+?)\$\$/
+        // const regex = /^(?:\$(.*?)\$|\((.*?)\)|\[(.*?)\])$/;
+        const regex = /\(\s(.+?)\s\)/g;
+        // console.log(regex.exec("$$我去$$"));
+        console.log(regex.exec("( 我去 )"));
+        // console.log(regex.exec("[我去]"));
+        
+        this.$data.tokenizer  =new marked.Tokenizer()
+        // 自定义 Tokenizer：识别 [公式]
+        this.$data.tokenizer.math = (src) => {
+          const regex_math = /\$\$(.+?)\$/g;
+          const match = regex_math.exec(src);
+
+          const regex_inline_math = /\\\((.+?)\\\)/g;
+          const inline_math = regex_inline_math.exec(src);
+
+          const regex_qwen_math =  /\\$([\s\S]*?)\\$/g;
+          const qwen_math = regex_inline_math.exec(src);
+          // console.log(src)
+          if (match) {
+              return {
+                type: 'math',
+                raw: src,
+                text: match[1],
+              };
+            }
+            // else if(inline_math){
+            //   console.log(inline_math[1]);
+            //   return {
+            //     type: 'math',
+            //     raw: src,
+            //     text: inline_math[1],
+            //   };
+            // }
+            else if(qwen_math){
+              console.log(qwen_math[1]);
+              return {
+                type: 'math',
+                raw: src,
+                text: qwen_math[1],
+              };
+            }
+
+          return false;
+        };
+
+      }
+
+
       if(this.$data.renderer == null){
         const renderMath = (str, displayMode) => {
           try {
@@ -184,8 +218,17 @@ export default {
             return err.toString();
           }
         };
-        
+
+
+
         this.$data.renderer = new marked.Renderer();
+        // 自定义 Renderer：返回带 $...$ 的 span 标签
+        this.$data.renderer.math = (text) => {
+          text= text.text
+          return renderMath(text.trim(), true);
+        };
+
+        // 注册扩展
         // 自定义代码块渲染
         this.$data.renderer.code = (code, language) => {
           let text = code.text
@@ -197,43 +240,59 @@ export default {
                          .replace(/'/g, '&#039;');
           }
         
-          if (text.trim().startsWith('[') && text.trim().endsWith(']')) {
-            console.log("识别到公式",text.trim().slice(2, -2))
-            return renderMath(text.trim().slice(2, -2), true);
-          }
-
+     
           var rtext = `<div class="code-block"><span class="language-label">${code.lang}</span><button class="copy-btn" data-clipboard-text="${text}">Copy</button><pre><code class="language-${code.lang}">${text}</code></pre></div>`;
           return  rtext
         };
     
 
               // 自定义段落处理以支持行内和块级数学公式
-        this.$data.renderer.paragraph = (text) => {
-          text = text.text
-          console.log(text)
-          // 行内公式替换
-          text = text.replace(/$\s*(.*?)\s*$/g, (match, p1) => {
-            try {
-              return katex.renderToString(p1, { throwOnError: false });
-            } catch (err) {
-              console.error('Failed to render inline math:', err);
-              return `<span style="color:red;">${match}</span>`;
-            }
-          });
+        const originalInlineParagraph =   this.$data.renderer.paragraph;
+        // this.$data.renderer.paragraph = (text) => {
+        //   text = text.text
+        //   if(text.length>0){
 
-          // 块级公式替换
-          text = text.replace(/$\s*(.*?)\s*$/g, (match, p1) => {
-            try {
-              return `<p>${katex.renderToString(p1, { throwOnError: false, displayMode: true })}</p>`;
-            } catch (err) {
-              console.error('Failed to render block math:', err);
-              return `<p><span style="color:red;">${match}</span></p>`;
-            }
-          });
+        //     return `<p>${text}</p>`;
+        //   }
+        //   console.log(text)
+        //   if (text.trim().startsWith('\\[') && text.trim().endsWith('\\]')) {
+        //     console.log("识别到公式",text.trim().slice(2, -2))
+        //     return renderMath(text.trim().slice(2, -2), true);
+        //   }
+          
+        //   // 行内公式替换
+        //   text = text.replace(/$\s*(.*?)\s*$/g, (match, p1) => {
+        //     try {
+        //       return katex.renderToString(p1, { throwOnError: false });
+        //     } catch (err) {
+        //       console.error('Failed to render inline math:', err);
+        //       return `<span style="color:red;">${match}</span>`;
+        //     }
+        //   });
 
-          return `<p>${text}</p>`;
-        };
-        
+        //   // 块级公式替换
+        //   text = text.replace(/$\s*(.*?)\s*$/g, (match, p1) => {
+        //     try {
+        //       return `<p>${katex.renderToString(p1, { throwOnError: false, displayMode: true })}</p>`;
+        //     } catch (err) {
+        //       console.error('Failed to render block math:', err);
+        //       return `<p><span style="color:red;">${match}</span></p>`;
+        //     }
+        //   });
+
+        //   return `<p>${text}</p>`;
+        // };
+        marked.use({
+          extensions: [
+            {
+              name: 'math',
+              level: 'inline', // 或 'block'
+              start(src) { return src.match(/\$/g)?.length >= 2 ? 0 : -1; },
+              tokenizer: this.$data.tokenizer.math,
+              renderer: this.$data.renderer.math
+            }
+          ]
+        });
       }
 
 
@@ -260,20 +319,26 @@ export default {
       try {
 
         // var url = "http://192.168.10.191:5090"
-        var url = "http://localhost:8080"
+        var url = "http://localhost:8081"
         const response = await axios.post(url+'/getLastStr', {
         }, {
           params: {
           }
         });
-        this.$data.messages[ this.messages.length-1].content = this.getMarkedText(response.data.data.context)
-        this.$data.messages[ this.messages.length-1].mean_tokens = response.data.data.mean_tokens
-        this.$data.messages[ this.messages.length-1].sum_tokens = response.data.data.sum_tokens
-        // Vue.set(this.list[index], 'context', newValue);
-        // this.$vue.set(, 'content', response.data.data.context);
         
-        this.$data.stopPolling = response.data.data.status == 4||response.data.data.status == 1
-        
+        var data = response.data.data
+        if(data == undefined){
+
+          console.warn("data was undefined")
+        }else{
+          this.$data.messages[ this.messages.length-1].content = this.getMarkedText(data.context)
+          this.$data.messages[ this.messages.length-1].mean_tokens = data.mean_tokens
+          this.$data.messages[ this.messages.length-1].sum_tokens = data.sum_tokens
+          // Vue.set(this.list[index], 'context', newValue);
+          // this.$vue.set(, 'content', response.data.data.context);
+          
+          this.$data.stopPolling = data.status == 4||data.status == 1
+        }
         this.$data.sending = true
       } catch (error) {
         this.$data.stopPolling = true;
@@ -284,7 +349,7 @@ export default {
       try {
 
         // var url = "http://192.168.10.191:5090"
-        var url = "http://localhost:8080"
+        var url = "http://localhost:8081"
         const response = await axios.post(url+'/getMessageList', {
         }, {
           params: {
