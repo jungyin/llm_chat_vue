@@ -157,53 +157,89 @@ export default {
       }
     },
 
+
     getMarkedText(context) {
       // console.log('查看输入',context)
       if(this.$data.tokenizer == null){
         // const regex = /\$\$(.+?)\$\$/
         // const regex = /^(?:\$(.*?)\$|\((.*?)\)|\[(.*?)\])$/;
-        const regex = /\(\s(.+?)\s\)/g;
+        const regex1 = /\(\s(.+?)\s\)/g;
         // console.log(regex.exec("$$我去$$"));
-        console.log(regex.exec("( 我去 )"));
+        console.log(regex1.exec("( 我去 )"));
         // console.log(regex.exec("[我去]"));
-        
+
+        const regex = /(\d{4})-(\d{2})-(\d{2})/g;
+        const match = regex.exec("Today's date is 2025-05");
+
+        if (match !== null) {
+            console.log(match); // "2025-05-09", 完整匹配
+        }
+                
         this.$data.tokenizer  =new marked.Tokenizer()
         // 自定义 Tokenizer：识别 [公式]
         this.$data.tokenizer.math = (src) => {
           const regex_math = /\$\$(.+?)\$/g;
-          const match = regex_math.exec(src);
 
           const regex_inline_math = /\\\((.+?)\\\)/g;
-          const inline_math = regex_inline_math.exec(src);
 
           const regex_qwen_math =  /\\$([\s\S]*?)\\$/g;
-          const qwen_math = regex_inline_math.exec(src);
-          // console.log(src)
-          if (match) {
-              return {
+          var allend = true
+          var rvalues = []
+          while(allend){
+            var rvalue = {}
+            const match = regex_math.exec(src);
+            const inline_math = regex_inline_math.exec(src);
+            const qwen_math = regex_inline_math.exec(src);
+            var moveIndex = 0;
+            if (match) {
+              rvalue= {
+                  type: 'math',
+                  raw: src,
+                  text: match[1],
+                  math_type :  "math",
+                };
+                moveIndex=match.index + match[0].length
+            }
+            else if(inline_math){
+              rvalue= {
                 type: 'math',
                 raw: src,
-                text: match[1],
+                text: inline_math[1],
+                math_type :  "inline_math",
               };
+              moveIndex=inline_math.index + inline_math[0].length;
             }
-            // else if(inline_math){
-            //   console.log(inline_math[1]);
-            //   return {
-            //     type: 'math',
-            //     raw: src,
-            //     text: inline_math[1],
-            //   };
-            // }
             else if(qwen_math){
-              console.log(qwen_math[1]);
-              return {
+              rvalue= {
                 type: 'math',
                 raw: src,
                 text: qwen_math[1],
+                math_type :  "qwen_math",
               };
+              moveIndex=qwen_math.index + qwen_math[0].length;
+            } else {
+              rvalue= {
+                type: 'text',
+                raw: src,
+                text: src,
+              };
+              allend=false
             }
+            if(allend){
+              src = src.slice(moveIndex,src.length)
+              console.log("裁剪检查",rvalue,moveIndex,src)
 
-          return false;
+            }
+            if(rvalue.type != undefined){
+              rvalues.push(rvalue)
+            }
+          }
+          if(rvalues.length>0){
+
+            return rvalues[0];
+          }else{
+            return false
+          }
         };
 
       }
@@ -225,6 +261,7 @@ export default {
         // 自定义 Renderer：返回带 $...$ 的 span 标签
         this.$data.renderer.math = (text) => {
           text= text.text
+          console.log(text)
           return renderMath(text.trim(), true);
         };
 
