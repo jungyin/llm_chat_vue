@@ -144,7 +144,7 @@ export default {
     async speak(context) {
       try {
         // var url = "http://192.168.10.191:5090"
-        var url = "http://localhost:8081"
+        var url = "http://localhost:8080"
         const response = await axios.post(url+'/speek', {
         }, {
           params: {
@@ -161,19 +161,7 @@ export default {
     getMarkedText(context) {
       // console.log('查看输入',context)
       if(this.$data.tokenizer == null){
-        // const regex = /\$\$(.+?)\$\$/
-        // const regex = /^(?:\$(.*?)\$|\((.*?)\)|\[(.*?)\])$/;
-        const regex1 = /\(\s(.+?)\s\)/g;
-        // console.log(regex.exec("$$我去$$"));
-        console.log(regex1.exec("( 我去 )"));
-        // console.log(regex.exec("[我去]"));
-
-        const regex = /(\d{4})-(\d{2})-(\d{2})/g;
-        const match = regex.exec("Today's date is 2025-05");
-
-        if (match !== null) {
-            console.log(match); // "2025-05-09", 完整匹配
-        }
+      
                 
         this.$data.tokenizer  =new marked.Tokenizer()
         // 自定义 Tokenizer：识别 [公式]
@@ -181,62 +169,91 @@ export default {
           const regex_math = /\$\$(.+?)\$/g;
 
           const regex_inline_math = /\\\((.+?)\\\)/g;
-
-          const regex_qwen_math =  /\\$([\s\S]*?)\\$/g;
+          const regex_qwen_math = /\\\[ (.+?) \\\]/g;
           var allend = true
           var rvalues = []
+          var sourcesrc= src
+          if(allend)
+          // return false
           while(allend){
             var rvalue = {}
             const match = regex_math.exec(src);
             const inline_math = regex_inline_math.exec(src);
-            const qwen_math = regex_inline_math.exec(src);
+            const qwen_math = regex_qwen_math.exec(src);
             var moveIndex = 0;
+            
             if (match) {
               rvalue= {
-                  type: 'math',
-                  raw: src,
-                  text: match[1],
-                  math_type :  "math",
-                };
-                moveIndex=match.index + match[0].length
+                type: 'math',
+                text: match[1],
+                math_type :  "math",
+              };
+              moveIndex=match.index + match[0].length
             }
             else if(inline_math){
+
+              rvalue= {
+                type: 'text',
+                text: src.slice(0,inline_math.index),
+                math_type :  "text",
+              };
+              
+              rvalues.push(rvalue)
+
               rvalue= {
                 type: 'math',
-                raw: src,
                 text: inline_math[1],
-                math_type :  "inline_math",
+                math_type :  "inline",
               };
               moveIndex=inline_math.index + inline_math[0].length;
             }
             else if(qwen_math){
+
               rvalue= {
                 type: 'math',
-                raw: src,
                 text: qwen_math[1],
-                math_type :  "qwen_math",
+                math_type :  "qwen",
               };
               moveIndex=qwen_math.index + qwen_math[0].length;
             } else {
               rvalue= {
                 type: 'text',
-                raw: src,
                 text: src,
               };
               allend=false
             }
             if(allend){
               src = src.slice(moveIndex,src.length)
-              console.log("裁剪检查",rvalue,moveIndex,src)
-
             }
             if(rvalue.type != undefined){
               rvalues.push(rvalue)
             }
-          }
-          if(rvalues.length>0){
 
-            return rvalues[0];
+
+            regex_math.lastIndex = 0;
+            regex_inline_math.lastIndex=0;
+            regex_qwen_math.lastIndex=0;
+          }
+          if(rvalues.length == 0){
+            // rvalues[0].raw = sourcesrc
+            // return rvalues[0]
+            return false
+          }
+
+          if(rvalues.length==1){
+            if(rvalues[0].type == 'text'){
+               return false
+            }
+          }
+
+          if(rvalues.length>0){
+            rvalue= {
+                type: 'math',
+                morelinex : true,
+                texts: rvalues,
+                raw:sourcesrc
+              };
+            return rvalue;
           }else{
             return false
           }
@@ -260,11 +277,37 @@ export default {
         this.$data.renderer = new marked.Renderer();
         // 自定义 Renderer：返回带 $...$ 的 span 标签
         this.$data.renderer.math = (text) => {
-          text= text.text
-          console.log(text)
-          return renderMath(text.trim(), true);
+
+          if(text.morelinex){
+            var divtext = '<div class="math-block">'
+            text.texts.forEach(item => {
+               var div = ""
+              if (item.type === 'text') {
+                  // 使用 marked 处理普通文本
+                  div = `${item.text}`
+                  divtext += div
+              } else {
+                  // 使用 KaTeX 处理数学表达式
+                 
+                  try {
+                    div = renderMath(item.text.trim(), item.math_type!='inline')
+                  } catch (e) {
+                      div = '无法渲染的数学表达式';
+                  }
+                  divtext += div
+                  // container.appendChild(div);
+              }
+            });
+            divtext += '</div>'
+            return divtext
+          }else{
+            text= text.text
+            return renderMath(text.trim(), true);
+          }
+          
         };
 
+    
         // 注册扩展
         // 自定义代码块渲染
         this.$data.renderer.code = (code, language) => {
@@ -356,7 +399,7 @@ export default {
       try {
 
         // var url = "http://192.168.10.191:5090"
-        var url = "http://localhost:8081"
+        var url = "http://localhost:8080"
         const response = await axios.post(url+'/getLastStr', {
         }, {
           params: {
@@ -386,7 +429,7 @@ export default {
       try {
 
         // var url = "http://192.168.10.191:5090"
-        var url = "http://localhost:8081"
+        var url = "http://localhost:8080"
         const response = await axios.post(url+'/getMessageList', {
         }, {
           params: {
