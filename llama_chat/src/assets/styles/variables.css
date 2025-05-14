@@ -42,7 +42,7 @@
   height: 100%; /* 输入框高度与背景容器匹配 */
   border: none; /* 移除默认边框 */
   padding: 10px; /* 内边距可以根据需要调整 */
-  font-size: 16px; /* 字体大小 */
+  font-size: 1.3rem; /* 字体大小 */
   box-sizing: border-box; /* 确保padding和border包含在元素的总尺寸内 */
   border-radius: inherit; /* 继承父级的圆角设置 */
   background-color: transparent; /* 背景透明以展示背景容器的颜色 */

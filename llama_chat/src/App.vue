@@ -3,7 +3,7 @@
 </template>
 
 <script>
-import DevicePixelRatio from './libs/rem'
+import DevicePixelRatio from './js/rem'
 import LLamaChat from './components/LLamaChat.vue'
 
 export default {
@@ -26,7 +26,9 @@ export default {
   color: #2c3e50;
 }
 
-
+body{
+  margin: 0;
+}
 
 
 </style>

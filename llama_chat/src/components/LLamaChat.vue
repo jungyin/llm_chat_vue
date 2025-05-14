@@ -1,19 +1,18 @@
 <template>
-  <div id="app" :style="containerStyle">
-    <button class="copy-btn" @click="copyAndWriteToClipboard(`进入`)">Copy</button>
+  <div id="app"  class="containerStyle">
     <div class="message-content"  v-html="cachetest"></div>
     <div class="message-list" ref="messageList">
-      <div v-for="(msg, index) in messages" :key="msg.content" class="message-item" :class="{'user-message': msg.sender == 'user', 'ai-message': msg.sender == 'ai'}">
+      <div v-for="(msg, index) in messages" :key="msg.content" class="message-item def-text" :class="{'user-message': msg.sender == 'user', 'ai-message': msg.sender == 'ai'}">
      
         <div class="message-content">
         
           <div  :ref="index" v-html="msg.content"></div>
-          <div class="right-tokens-text" v-if="msg.sender == 'ai' " :ref="index"> 平均token/s {{ (parseFloat( msg.mean_tokens)).toFixed(1) }},总耗时{{ (parseFloat( msg.sum_tokens)).toFixed(1) }}</div>
+          <div class="right-tokens-text def-text" v-if="msg.sender == 'ai' " :ref="index"> 平均token/s {{ (parseFloat( msg.mean_tokens)).toFixed(1) }},总耗时{{ (parseFloat( msg.sum_tokens)).toFixed(1) }}</div>
         </div>
       </div>
     </div>
     <div class="input-background " >
-      <textarea v-model="newMessage" placeholder="请输入消息..." @focus="onFocus" class="input-field "></textarea>
+      <textarea v-model="newMessage" placeholder="请输入消息..." @focus="onFocus" class="input-field " @keydown="handleKeydown"></textarea>
       <button  @click="sendMessage"  class="nor-button send-button" v-if="!sending">发送</button>
       <button  @click="sendMessage_wait"  class="nor-button send-button" style="opacity : 0.5" v-else>发送</button>
     </div>
@@ -45,23 +44,6 @@ export default {
   
     };
   },
-  computed: {
-    containerStyle() {
-
-     
-      return {
-        backgroundColor: '#f6f6f6',
-        width: '100vw', // 注意这里从 upx 转换为 px
-        height: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        renderer : null,
-        tokenizer :  null,
-        marked_options : null,
-
-      };
-    },
-  },
   created() {
     const markdownContent ='当然可以！以下是一个简单的 Python 代码示例，展示如何绘制一个简单的波形图：\n\n```python\nimport numpy as np\nimport matplotlib.pyplot as plt\n\n# 定义时间数组和对应的幅度数组\ntime = np.linspace(0, 10, 100)\namplitude = np.sin(time)\n\n# 创建图形\nplt.plot(time, amplitude)\n\n# 设置标题和轴标签\nplt.title(\'Simple Waveform\')\nplt.xlabel(\'Time (s)\')\nplt.ylabel(\'Amplitude\')\n\n# 显示图形\nplt.show()\n```\n\n在这个示例中，我们首先导入了`numpy`模块，并定义了时间数组和对应的幅度数组。然后，我们使用`plt.plot()`函数创建了一个简单的波形图，并设置了标题和轴标签。最后，我们使用`plt.show()`函数显示图形。\n\n你可以根据需要修改时间和幅度数据，以绘制不同的波形图。\n这是一个包含数学公式的Markdown文本：\n$$ E = mc^2 $$\n尝试使用MathJax渲染它。'
     const renderer = new marked.Renderer();
@@ -90,7 +72,7 @@ export default {
           renderer:renderer
         };
 
-    this.$data.cachetest = this.getMarkedText(markdownContent)
+    // this.$data.cachetest = this.getMarkedText(markdownContent)
 
     this.replace_message()
 
@@ -112,15 +94,33 @@ export default {
     //   console.error('Action:', e.action);
     //   console.error('Trigger:', e.trigger);
     // });
-  },
+},
+
 
   methods: {
-    handleClick() {
-      console.log('按钮被点击了！');
-    },
     copyAndWriteToClipboard(text) {
       navigator.clipboard.writeText(text);
       alert(`代码复制成功`);
+    },
+    handleKeydown(event) {
+      console.log("y1m1")
+      // 检查是否按下了 Ctrl 键和回车键
+      if (event.ctrlKey && event.key === 'Enter') {
+        // 阻止默认行为（如果有的话）
+        event.preventDefault();
+        // 在光标位置插入换行符
+        const textarea = event.target;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        this.text = this.text.substring(0, start) + '\n' + this.text.substring(end);
+        // 更新光标位置
+        textarea.setSelectionRange(start + 1, start + 1);
+      } else if (event.key === 'Enter' && !event.ctrlKey) {
+        // 阻止默认行为
+        event.preventDefault();
+        // 触发指定事件或逻辑
+        this.sendMessage();
+      }
     },
     sendMessage() {
       if (this.newMessage.trim()) {
@@ -132,19 +132,13 @@ export default {
 
         this.$data.messages.push({ sender: 'ai', content: "",mean_tokens:0.0,sum_tokens:0.0 });
         this.wait_speak()
-        // // 模拟AI回复
-        // setTimeout(() => {
-        //   this.messages.push({ sender: 'ai', content: '这是AI的回复' });
-        //   this.scrollToBottom();
-        //   this.$data.sending = false
-        // }, 1000);
       }
     },
 
     async speak(context) {
       try {
         // var url = "http://192.168.10.191:5090"
-        var url = "http://localhost:8080"
+        var url = "http://localhost:8081"
         const response = await axios.post(url+'/speek', {
         }, {
           params: {
@@ -170,6 +164,7 @@ export default {
 
           const regex_inline_math = /\\\((.+?)\\\)/g;
           const regex_qwen_math = /\\\[ (.+?) \\\]/g;
+          const regex_qwen_math_br = /\\\[\n(.+?)\n\\\]/g;
           var allend = true
           var rvalues = []
           var sourcesrc= src
@@ -180,6 +175,7 @@ export default {
             const match = regex_math.exec(src);
             const inline_math = regex_inline_math.exec(src);
             const qwen_math = regex_qwen_math.exec(src);
+            const qwen_math_br = regex_qwen_math_br.exec(src);
             var moveIndex = 0;
             
             if (match) {
@@ -215,7 +211,14 @@ export default {
                 math_type :  "qwen",
               };
               moveIndex=qwen_math.index + qwen_math[0].length;
-            } else {
+            }else if(qwen_math_br){
+              rvalue= {
+                type: 'math',
+                text: qwen_math_br[1],
+                math_type :  "qwen",
+              };
+              moveIndex=qwen_math_br.index + qwen_math_br[0].length;
+            }else {
               rvalue= {
                 type: 'text',
                 text: src,
@@ -321,47 +324,9 @@ export default {
           }
         
      
-          var rtext = `<div class="code-block"><span class="language-label">${code.lang}</span><button class="copy-btn" data-clipboard-text="${text}">Copy</button><pre><code class="language-${code.lang}">${text}</code></pre></div>`;
+          var rtext = `<div class="code-block"><span class="language-label">${code.lang}</span><button class="copy-btn" data-clipboard-text="${text}">Copy</button><pre class="code-pre"><code class="language-${code.lang}">${text}</code></pre></div>`;
           return  rtext
         };
-    
-
-              // 自定义段落处理以支持行内和块级数学公式
-        const originalInlineParagraph =   this.$data.renderer.paragraph;
-        // this.$data.renderer.paragraph = (text) => {
-        //   text = text.text
-        //   if(text.length>0){
-
-        //     return `<p>${text}</p>`;
-        //   }
-        //   console.log(text)
-        //   if (text.trim().startsWith('\\[') && text.trim().endsWith('\\]')) {
-        //     console.log("识别到公式",text.trim().slice(2, -2))
-        //     return renderMath(text.trim().slice(2, -2), true);
-        //   }
-          
-        //   // 行内公式替换
-        //   text = text.replace(/$\s*(.*?)\s*$/g, (match, p1) => {
-        //     try {
-        //       return katex.renderToString(p1, { throwOnError: false });
-        //     } catch (err) {
-        //       console.error('Failed to render inline math:', err);
-        //       return `<span style="color:red;">${match}</span>`;
-        //     }
-        //   });
-
-        //   // 块级公式替换
-        //   text = text.replace(/$\s*(.*?)\s*$/g, (match, p1) => {
-        //     try {
-        //       return `<p>${katex.renderToString(p1, { throwOnError: false, displayMode: true })}</p>`;
-        //     } catch (err) {
-        //       console.error('Failed to render block math:', err);
-        //       return `<p><span style="color:red;">${match}</span></p>`;
-        //     }
-        //   });
-
-        //   return `<p>${text}</p>`;
-        // };
         marked.use({
           extensions: [
             {
@@ -399,7 +364,7 @@ export default {
       try {
 
         // var url = "http://192.168.10.191:5090"
-        var url = "http://localhost:8080"
+        var url = "http://localhost:8081"
         const response = await axios.post(url+'/getLastStr', {
         }, {
           params: {
@@ -429,7 +394,7 @@ export default {
       try {
 
         // var url = "http://192.168.10.191:5090"
-        var url = "http://localhost:8080"
+        var url = "http://localhost:8081"
         const response = await axios.post(url+'/getMessageList', {
         }, {
           params: {
@@ -455,11 +420,28 @@ export default {
         }
 
         this.$data.messages = cache
-      
+        console.log("查看高度",document.documentElement.scrollHeight)
+        this.checkPageHeight()
       } catch (error) {
         console.error("Error posting data:", error);
       }
     },
+     checkPageHeight() {
+  const scrollHeight = Math.max(
+    document.documentElement.scrollHeight, 
+    document.body.scrollHeight
+  );
+  const viewportHeight = window.innerHeight;
+
+  console.log(`整个页面的高度: ${scrollHeight}px`);
+  console.log(`视口高度: ${viewportHeight}px`);
+
+  if (scrollHeight > viewportHeight) {
+    console.log('由于页面内容超出了视口高度，出现了滚动条。');
+  } else {
+    console.log('页面内容没有超出视口高度，没有滚动条。');
+  }
+},
     wait_speak() {
         this.intervalId = setInterval(() => {
           if (!this.$data.stopPolling) {
@@ -469,7 +451,7 @@ export default {
             
             this.$data.sending = false
           }
-        }, 250); // 每隔500ms执行一次
+        }, 300); // 每隔500ms执行一次
       }
     },
     
@@ -489,10 +471,23 @@ export default {
 };
 </script>
 
-<style scoped>
+<style>
 .message-list {
   flex-grow: 1;
   overflow-y: auto;
+  max-height: 1090px; 
+  border: 1px solid #ccc; /* 可选：增加边框以便更清晰地看到滚动区域 */
+  margin-top: 20px;
+  margin-bottom: 20px;
+  margin-right: 15px;
+  margin-left: 15px;
+  background-color: #f4f4f4;
+}
+
+.message-item{
+  margin-left: 15px;
+  margin-right: 15px;
+  font-size: 1.3rem;
 }
 .message-item.user-message .message-content,
 .message-item.ai-message .message-content {
@@ -511,7 +506,7 @@ export default {
   margin-top: 15px; /* 添加顶部间距 */
 }
 .message-item.ai-message .message-content {
-  background-color: white;
+  background-color: #fff;
   border-radius: 10px;
   color: #333;
   padding: 10px;
@@ -524,6 +519,8 @@ export default {
 textarea {
   flex-grow: 1;
   padding: 10px;
+  resize:none;
+
   margin-right: 15px; /* 添加右边距 */
 }
 .send-button {
@@ -543,44 +540,57 @@ pre.code {
 
 
 
-
   /* 自定义代码块的样式 */
 .code-block {
   position: relative;
-  background-color: #000;
+  background-color: #333;
   border-radius: 10px;
   padding: 10px;
   margin: 10px 0;
   overflow-x: auto;
   color: #fff;
+  
 }
-
+.code-pre{
+  margin-bottom: 10px;
+  margin-top: 25px;
+  padding-left: 10px;
+  padding-right: 10px;
+}
 .language-label {
   position: absolute;
-  top: 5px;
-  left: 10px;
+  top: 10px;
+  left: 20px;
   font-size: 0.8em;
   color: #ccc;
 }
 
-.copy-btn {
+button.copy-btn {
   position: absolute;
-  top: 5px;
-  right: 10px;
+  top: 10px;
+  right: 20px;
   background-color: transparent;
   border: none;
-  color: #ccc;
+  color: #fff;
   cursor: pointer;
 }
 
-.copy-btn:hover {
+button.copy-btn:hover {
   color: #fff;
 }
 
 .right-tokens-text {
-    font-size: 13px;
+    font-size: 1.2rem;
     color: #333;
     text-align: right;
     padding-right: 15px;
+}
+.containerStyle{
+  overflow: hidden; /* 禁止整个应用的滚动 */
+  background-color: '#f6f6f6';
+  width: '100%';
+  height: '1200px';
+  display: 'flex';
+  flex-direction: 'column';
 }
 </style>
