@@ -1,15 +1,16 @@
 <template>
-  <LLamaChat msg="Welcome to Your Vue.js App"/>
+  <kk123 msg="Welcome to Your Vue.js App"/>
 </template>
 
 <script>
 import DevicePixelRatio from './js/rem'
-import LLamaChat from './components/LLamaChat.vue'
+// import LLamaChat from './components/LLamaChat.vue'
+import kk123 from './components/kk.vue'
 
 export default {
   name: 'App',
   components: {
-    LLamaChat,
+    kk123,
   },
   created(){
     new DevicePixelRatio().init()

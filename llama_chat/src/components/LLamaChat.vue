@@ -1,7 +1,6 @@
 <template>
   <div id="app"  class="containerStyle">
-    <div class="message-content"  v-html="cachetest"></div>
-    <div class="message-list" ref="messageList">
+    <div class="message-list " @scroll="handleScroll" ref="messageList">
       <div v-for="(msg, index) in messages" :key="msg.content" class="message-item def-text" :class="{'user-message': msg.sender == 'user', 'ai-message': msg.sender == 'ai'}">
      
         <div class="message-content">
@@ -20,6 +19,9 @@
 </template>
 
 <script>
+
+import at from 'array.prototype.at';
+at.shim();
 import katex from 'katex';
 import 'katex/dist/katex.min.css'; // 导入 KaTeX 样式
 import axios from 'axios';
@@ -40,8 +42,8 @@ export default {
       intervalId: null,
       sending : false,
       stopPolling : false,
-      cachetest:""
-  
+      cachetest:"",
+      isAtBottom:true,
     };
   },
   created() {
@@ -81,29 +83,26 @@ export default {
   },
   mounted() {
     new ClipboardJS('.copy-btn');
-    // const clipboard = new ClipboardJS('.copy-btn');
-
-    // clipboard.on('success', function(e) {
-    //   console.info('Action:', e.action);
-    //   console.info('Text:', e.text);
-    //   console.info('Trigger:', e.trigger);
-    //   e.clearSelection();
-    // });
-
-    // clipboard.on('error', function(e) {
-    //   console.error('Action:', e.action);
-    //   console.error('Trigger:', e.trigger);
-    // });
-},
-
+    this.adjustHeight();
+    window.addEventListener('resize', this.adjustHeight);
+    window.addEventListener('resize', this.handleScroll);
+  },
+  beforeUnmount() {
+    window.removeEventListener('resize', this.adjustHeight);
+    window.removeEventListener('resize', this.handleScroll);
+  },
 
   methods: {
+    handleScroll() {
+      const { scrollHeight, scrollTop, clientHeight } = this.$refs.messageList;
+      // 判断是否滚动到底部
+      this.isAtBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 1;
+    },
     copyAndWriteToClipboard(text) {
       navigator.clipboard.writeText(text);
       alert(`代码复制成功`);
     },
     handleKeydown(event) {
-      console.log("y1m1")
       // 检查是否按下了 Ctrl 键和回车键
       if (event.ctrlKey && event.key === 'Enter') {
         // 阻止默认行为（如果有的话）
@@ -112,7 +111,7 @@ export default {
         const textarea = event.target;
         const start = textarea.selectionStart;
         const end = textarea.selectionEnd;
-        this.text = this.text.substring(0, start) + '\n' + this.text.substring(end);
+        this.newMessage = this.newMessage.substring(0, start) + '\n' + this.newMessage.substring(end);
         // 更新光标位置
         textarea.setSelectionRange(start + 1, start + 1);
       } else if (event.key === 'Enter' && !event.ctrlKey) {
@@ -153,6 +152,7 @@ export default {
 
 
     getMarkedText(context) {
+      // return context
       // console.log('查看输入',context)
       if(this.$data.tokenizer == null){
       
@@ -383,6 +383,7 @@ export default {
           // this.$vue.set(, 'content', response.data.data.context);
           
           this.$data.stopPolling = data.status == 4||data.status == 1
+          this.scrollToBottom()
         }
         this.$data.sending = true
       } catch (error) {
@@ -402,6 +403,7 @@ export default {
         });
 
         let cache = []
+        console.log("输出结果检查",response.data.data.length,response.data.data)
         for (let i = 0;i<response.data.data.length;i++){
           if(response.data.data[i].role == 'user'){
 
@@ -426,22 +428,23 @@ export default {
         console.error("Error posting data:", error);
       }
     },
-     checkPageHeight() {
-  const scrollHeight = Math.max(
-    document.documentElement.scrollHeight, 
-    document.body.scrollHeight
-  );
-  const viewportHeight = window.innerHeight;
+    checkPageHeight() {
+      const scrollHeight = Math.max(
+        document.documentElement.scrollHeight, 
+        document.body.scrollHeight
+      );
+      const viewportHeight = window.innerHeight;
 
-  console.log(`整个页面的高度: ${scrollHeight}px`);
-  console.log(`视口高度: ${viewportHeight}px`);
+      console.log(`整个页面的高度: ${scrollHeight}px`);
+      console.log(`视口高度: ${viewportHeight}px`);
 
-  if (scrollHeight > viewportHeight) {
-    console.log('由于页面内容超出了视口高度，出现了滚动条。');
-  } else {
-    console.log('页面内容没有超出视口高度，没有滚动条。');
-  }
-},
+      if (scrollHeight > viewportHeight) {
+        console.log('由于页面内容超出了视口高度，出现了滚动条。');
+      } else {
+        console.log('页面内容没有超出视口高度，没有滚动条。');
+      }
+    },
+
     wait_speak() {
         this.intervalId = setInterval(() => {
           if (!this.$data.stopPolling) {
@@ -452,17 +455,25 @@ export default {
             this.$data.sending = false
           }
         }, 300); // 每隔500ms执行一次
-      }
+      },
+
+      adjustHeight() {
+        const vh = window.innerHeight * window.devicePixelRatio ;
+        console.log("vh",vh)
+        this.$refs.messageList.style.height = `${1 * vh - 150}px`;
+      },
+      scrollToBottom() {
+        if (this.isAtBottom) {
+          this.$nextTick(() => {
+            this.$refs.messageList.scrollTop = this.$refs.messageList.scrollHeight;
+          });
+        }
+      },
     },
+
     
     onFocus() {
       // 页面顶起逻辑可以根据需要在此处实现
-    },
-    scrollToBottom() {
-      this.$nextTick(() => {
-        const messageList = this.$refs.messageList;
-        messageList.scrollTop = messageList.scrollHeight;
-      });
     },
 
 
@@ -472,10 +483,12 @@ export default {
 </script>
 
 <style>
+
+
 .message-list {
   flex-grow: 1;
   overflow-y: auto;
-  max-height: 1090px; 
+  height: 80vh; 
   border: 1px solid #ccc; /* 可选：增加边框以便更清晰地看到滚动区域 */
   margin-top: 20px;
   margin-bottom: 20px;
@@ -516,7 +529,7 @@ export default {
   margin-top: 15px; /* 添加顶部间距 */
 }
 
-textarea {
+.textarea {
   flex-grow: 1;
   padding: 10px;
   resize:none;
@@ -586,10 +599,11 @@ button.copy-btn:hover {
     padding-right: 15px;
 }
 .containerStyle{
+  padding-top: 15px;
   overflow: hidden; /* 禁止整个应用的滚动 */
   background-color: '#f6f6f6';
   width: '100%';
-  height: '1200px';
+  height: '100%';
   display: 'flex';
   flex-direction: 'column';
 }
