@@ -50,7 +50,7 @@ export default {
     const markdownContent ='当然可以！以下是一个简单的 Python 代码示例，展示如何绘制一个简单的波形图：\n\n```python\nimport numpy as np\nimport matplotlib.pyplot as plt\n\n# 定义时间数组和对应的幅度数组\ntime = np.linspace(0, 10, 100)\namplitude = np.sin(time)\n\n# 创建图形\nplt.plot(time, amplitude)\n\n# 设置标题和轴标签\nplt.title(\'Simple Waveform\')\nplt.xlabel(\'Time (s)\')\nplt.ylabel(\'Amplitude\')\n\n# 显示图形\nplt.show()\n```\n\n在这个示例中，我们首先导入了`numpy`模块，并定义了时间数组和对应的幅度数组。然后，我们使用`plt.plot()`函数创建了一个简单的波形图，并设置了标题和轴标签。最后，我们使用`plt.show()`函数显示图形。\n\n你可以根据需要修改时间和幅度数据，以绘制不同的波形图。\n这是一个包含数学公式的Markdown文本：\n$$ E = mc^2 $$\n尝试使用MathJax渲染它。'
     const renderer = new marked.Renderer();
  
-    // this.checklaststr();
+    this.wait_speak()
     
   const renderMath = (str, displayMode) => {
     try {
@@ -136,8 +136,8 @@ export default {
 
     async speak(context) {
       try {
-        // var url = "http://192.168.10.191:5090"
-        var url = "http://localhost:8081"
+        // var url = "http://192.168.1.57:8080"
+        var url = "http://localhost:8080"
         const response = await axios.post(url+'/speek', {
         }, {
           params: {
@@ -363,8 +363,8 @@ export default {
     async checklaststr() {
       try {
 
-        // var url = "http://192.168.10.191:5090"
-        var url = "http://localhost:8081"
+        //var url = "http://192.168.1.57:8080"
+        var url = "http://localhost:8080"
         const response = await axios.post(url+'/getLastStr', {
         }, {
           params: {
@@ -394,8 +394,8 @@ export default {
     async replace_message(){
       try {
 
-        // var url = "http://192.168.10.191:5090"
-        var url = "http://localhost:8081"
+         //var url = "http://192.168.1.57:8080"
+        var url = "http://localhost:8080"
         const response = await axios.post(url+'/getMessageList', {
         }, {
           params: {
